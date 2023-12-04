@@ -1,14 +1,10 @@
-Create your own blog using Django
+Create your own blog using Django.
 
-Create a new Django project and a blog app:
-bash
-django-admin startproject myblogproject
-cd myblogproject
+django-admin startproject myblog
+cd myblog
 python manage.py startapp blog
-Define models for the blog app:
-============================================================================================
-Edit the blog/models.py file:
-models.py ------->
+
+blog/models.py --
 from django.db import models
 from django.utils import timezone
 
@@ -20,56 +16,87 @@ class Post(models.Model):
     def __str__(self):
         return self.title
 
-===============================================================================================
-Run migrations to create the database tables:
-bash
-Copy code
-python manage.py makemigrations
-python manage.py migrate
+class Comment(models.Model):
+    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    text = models.TextField()
+    pub_date = models.DateTimeField(default=timezone.now)
 
+    def __str__(self):
+        return f"Comment by {self.post} on {self.pub_date}"
 
-Create admin panel for the blog app:
-Edit the blog/admin.py file:
-
-admin.py------->
+blog/admin.py --
 from django.contrib import admin
-from .models import Post
+from .models import Post, Comment
 
 admin.site.register(Post)
---------------------------------------------------------------------------------------------
-Create views for the blog app:
-Edit the blog/views.py file:
+admin.site.register(Comment)
 
-views.py ----------->
+
+python manage.py makemigrations
+python manage.py migrate
+python manage.py createsuperuser
+
+blog/views.py -->
 from django.shortcuts import render, get_object_or_404
 from .models import Post
 
 def post_list(request):
-    posts = Post.objects.all().order_by('-pub_date')
+    posts = Post.objects.all()
     return render(request, 'blog/post_list.html', {'posts': posts})
 
 def post_detail(request, pk):
     post = get_object_or_404(Post, pk=pk)
     return render(request, 'blog/post_detail.html', {'post': post})
 
-=============================================================================================
-Create URL patterns for the blog app:
-Edit the blog/urls.py file:
 
-urls.py-------------->
+Create HTML templates in the blog/templates/blog directory:
+post_list.html:
+{% extends 'base_generic.html' %}
+
+{% block content %}
+  {% for post in posts %}
+    <h1><a href="{% url 'post_detail' pk=post.pk %}">{{ post.title }}</a></h1>
+    <p>{{ post.pub_date }}</p>
+  {% endfor %}
+{% endblock %}
+
+post_detail.html --
+{% extends 'base_generic.html' %}
+
+{% block content %}
+  <h1>{{ post.title }}</h1>
+  <p>{{ post.content }}</p>
+  <p>Published on: {{ post.pub_date }}</p>
+  <h2>Comments</h2>
+  {% for comment in post.comment_set.all %}
+    <p>{{ comment.text }} - {{ comment.pub_date }}</p>
+  {% endfor %}
+{% endblock %}
+
+
+base_generic.html --
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{% block title %}My Blog{% endblock %}</title>
+</head>
+<body>
+  <div id="content">
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>
+
+blog/urls.py -- 
 from django.urls import path
 from . import views
 
-app_name = 'blog'
 urlpatterns = [
     path('', views.post_list, name='post_list'),
-    path('<int:pk>/', views.post_detail, name='post_detail'),
+    path('post/<int:pk>/', views.post_detail, name='post_detail'),
 ]
-============================================================================================
-Include the blog app URLs in the project's urls.py file:
-Edit the myblogproject/urls.py file:
 
-urls.py---------->
+urls.py -- existing urls
 from django.contrib import admin
 from django.urls import include, path
 
@@ -78,53 +105,6 @@ urlpatterns = [
     path('blog/', include('blog.urls')),
 ]
 
-==================================================================
-Create templates for the blog app:
-Create a blog/templates/blog/post_list.html file:
-
-
-<!-- blog/templates/blog/post_list.html -->
-{% extends 'base.html' %}
-
-{% block content %}
-  <h1>Blog</h1>
-  {% for post in posts %}
-    <h2><a href="{% url 'blog:post_detail' pk=post.pk %}">{{ post.title }}</a></h2>
-    <p>{{ post.pub_date }}</p>
-    <p>{{ post.content }}</p>
-  {% endfor %}
-{% endblock %}
-=========================================================================
-Create a blog/templates/blog/post_detail.html file:
-
-<!-- blog/templates/blog/post_detail.html -->
-{% extends 'base.html' %}
-
-{% block content %}
-  <h1>{{ post.title }}</h1>
-  <p>{{ post.pub_date }}</p>
-  <p>{{ post.content }}</p>
-{% endblock %}
-========================================================================
-Create a blog/templates/base.html file:
-
-<!-- blog/templates/base.html -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}My Blog{% endblock %}</title>
-</head>
-<body>
-    <div id="content">
-        {% block content %}{% endblock %}
-    </div>
-</body>
-</html>
-=======================================================================
-Run the development server:
-bash
-Copy code
 python manage.py runserver
-Visit http://127.0.0.1:8000/blog/ in your web browser to see the list of blog posts. You can create new posts using the Django admin panel at http://127.0.0.1:8000/admin/.
+Access the blog at http://127.0.0.1:8000/blog/ and the admin panel at http://127.0.0.1:8000/admin/.
+Log in with the superuser credentials to add blog posts and comments
